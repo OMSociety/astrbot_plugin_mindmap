@@ -1,0 +1,8 @@
+name: astrbot_plugin_mindmap
+desc: 思维导图工具箱：根据大纲渲染中文思维导图与时间线图（Pillow 自研布局，零新增依赖，内置思源黑体）。agent 可通过 llm_tool 自主出图直发用户，也可取 PNG 路径嵌入 docx 等文档。
+short_desc: 大纲一键生成中文思维导图/时间线 PNG
+version: 1.0.0
+author: OMSociety
+repo: https://github.com/OMSociety/astrbot_plugin_mindmap
+display_name: 思维导图工具箱
+astrbot_version: ">=4.13.0"

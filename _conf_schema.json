@@ -1,0 +1,50 @@
+{
+  "auto_send": {
+    "type": "bool",
+    "description": "工具调用未显式指定 send 时，是否自动把图片发给用户",
+    "default": true,
+    "hint": "docx 嵌入等二次加工场景可在调用时传 send=False"
+  },
+  "echo_outline": {
+    "type": "bool",
+    "description": "指令模式生成图片后是否回显原始大纲",
+    "default": false
+  },
+  "retain_days": {
+    "type": "int",
+    "description": "PNG 文件保留天数，超过后自动清理",
+    "default": 7
+  },
+  "max_image_width": {
+    "type": "int",
+    "description": "输出图片最大宽度（像素），超出等比缩放",
+    "default": 2000
+  },
+  "max_nodes": {
+    "type": "int",
+    "description": "大纲节点数硬上限，超出拒绝生成",
+    "default": 200
+  },
+  "max_node_chars": {
+    "type": "int",
+    "description": "单节点字数硬上限，超出拒绝生成（不静默裁剪）",
+    "default": 200
+  },
+  "output_scale": {
+    "type": "int",
+    "description": "输出分辨率倍数（相对逻辑尺寸）",
+    "default": 2,
+    "hint": "QQ 上看着糊就调大；受 max_image_width 上限约束"
+  },
+  "theme": {
+    "type": "string",
+    "description": "配色主题",
+    "default": "socred",
+    "hint": "当前仅提供社科红单色主题 socred"
+  },
+  "enable_command": {
+    "type": "bool",
+    "description": "是否启用 /mindmap 指令",
+    "default": true
+  }
+}
