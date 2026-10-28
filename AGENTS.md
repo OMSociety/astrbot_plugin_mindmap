@@ -76,7 +76,7 @@ main.py（Star 入口） -> core/parser -> core/layout -> core/render -> core/th
 
 1. `python -m pytest tests -q`（Windows 本机若 Temp 目录 ACL 拒绝，加 `--basetemp=<可写目录>`）
 2. `ruff check .` 与 `ruff format --check .`
-3. 宿主内模拟加载：在宿主 venv 中 `import data.plugins.astrbot_plugin_mindmap.main` 无异常
+3. 宿主内模拟加载：在宿主 venv 中 `import data.plugins.mindmap.main` 无异常（市场安装的目录名取 `metadata.yaml` 的 `name`，本地仓库目录名保持 `astrbot_plugin_mindmap`）
 4. astrbot-plugin-creator 技能 `scripts/check_plugin.py` 对「排除 tests/ 的副本」跑出 error 0（tests 用包名绝对导入是 pytest 必需写法，直接扫仓库会有 13 条 import.self 假阳性）
 
 ## 提交与协作
@@ -98,7 +98,7 @@ main.py（Star 入口） -> core/parser -> core/layout -> core/render -> core/th
 
 | 症状（可检索片段） | 处理 |
 |---|---|
-| 宿主插件页看不到插件 | 目录名须等于 metadata.yaml 的 `name` 且是合法 Python 标识符；查宿主日志的加载异常 |
+| 宿主插件页看不到插件 | 插件目录名须是合法 Python 标识符（宿主按目录名 import 模块）；查宿主日志的加载异常 |
 | 发 `/mindmap` 无响应 | 指令匹配 `^/?mindmap`；检查平台指令前缀配置 |
 | LLM 不调工具或复述工具返回值 | 检查 SKILL.md 与工具 docstring 的模型可见面（见「禁止操作」） |
 

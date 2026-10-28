@@ -54,7 +54,7 @@
 
 ### 图文件留存与二次加工
 
-生成的 PNG 落在 `data/plugin_data/astrbot_plugin_mindmap/mindmap/YYYYmmdd/` 下，默认保留 7 天。调用时传 `send=False` 只渲染不发图，返回文件路径，可用于嵌入 docx、PDF 或做二次加工。
+生成的 PNG 落在 `data/plugin_data/mindmap/mindmap/YYYYmmdd/` 下，默认保留 7 天。调用时传 `send=False` 只渲染不发图，返回文件路径，可用于嵌入 docx、PDF 或做二次加工。
 
 ---
 
@@ -106,7 +106,7 @@ bot：[时间线 PNG] 已画好，从 1789 到 1871 共 5 个节点。
 
 ### 快速配置模板
 
-在 WebUI 配置面板填写，或参考以下结构（`data/config/astrbot_plugin_mindmap_config.json`）：
+在 WebUI 配置面板填写，或参考以下结构（`data/config/mindmap_config.json`）：
 
 ```json
 {
@@ -168,7 +168,7 @@ bot：[思维导图 PNG] 画好啦！
 
 ### Q3：图片存在哪里，会占空间吗？
 
-`data/plugin_data/astrbot_plugin_mindmap/mindmap/YYYYmmdd/`，按日期分目录；超过 `retain_days`（默认 7 天）自动删除，后台每 6 小时清理一次。
+`data/plugin_data/mindmap/mindmap/YYYYmmdd/`，按日期分目录；超过 `retain_days`（默认 7 天）自动删除，后台每 6 小时清理一次。
 
 ### Q4：大纲太大画不出来怎么办？
 

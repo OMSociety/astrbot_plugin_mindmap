@@ -54,7 +54,7 @@ A bundled skill `mindmap` teaches the bot the outline format, size guidance, pal
 
 ### File retention and reuse
 
-PNGs land in `data/plugin_data/astrbot_plugin_mindmap/mindmap/YYYYmmdd/` and are kept for 7 days by default. Passing `send=False` renders only and returns the path, handy for embedding into docx, PDF or other post-processing.
+PNGs land in `data/plugin_data/mindmap/mindmap/YYYYmmdd/` and are kept for 7 days by default. Passing `send=False` renders only and returns the path, handy for embedding into docx, PDF or other post-processing.
 
 ---
 
@@ -106,7 +106,7 @@ The `--theme` and `timeline` prefixes may appear in any order; an empty outline 
 
 ### Quick config template
 
-Fill it in the WebUI panel, or follow this structure (`data/config/astrbot_plugin_mindmap_config.json`):
+Fill it in the WebUI panel, or follow this structure (`data/config/mindmap_config.json`):
 
 ```json
 {
@@ -168,7 +168,7 @@ Any platform that accepts image messages (QQ, Telegram, Discord and others). If 
 
 ### Q3: Where are the images stored, and do they pile up?
 
-Under `data/plugin_data/astrbot_plugin_mindmap/mindmap/YYYYmmdd/`, one directory per day; anything older than `retain_days` (7 by default) is removed, with a cleanup every six hours.
+Under `data/plugin_data/mindmap/mindmap/YYYYmmdd/`, one directory per day; anything older than `retain_days` (7 by default) is removed, with a cleanup every six hours.
 
 ### Q4: What if the outline is too large?
 

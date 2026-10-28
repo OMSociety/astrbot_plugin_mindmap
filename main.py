@@ -25,7 +25,7 @@ from .core.parser import (
 from .core.render import RenderResult, render_to_png
 from .core.theme import get_theme
 
-PLUGIN_NAME = "astrbot_plugin_mindmap"
+PLUGIN_NAME = "mindmap"
 
 DEFAULTS: dict = {
     "auto_send": True,

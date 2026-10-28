@@ -1,4 +1,4 @@
-name: astrbot_plugin_mindmap
+name: mindmap
 desc: 根据大纲渲染中文思维导图与时间线图，支持指令与工具调用
 short_desc: 大纲一键生成中文思维导图/时间线 PNG
 version: 1.0.0
