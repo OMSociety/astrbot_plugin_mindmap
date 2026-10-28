@@ -8,7 +8,7 @@
 
 **Turn a Markdown outline into a mind map or timeline and send it straight to the chat** — Local rendering · Six palettes · CJK line wrapping · HiDPI output
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/OMSociety/astrbot_plugin_mindmap)
+[![Version](https://img.shields.io/github/v/tag/OMSociety/astrbot_plugin_mindmap?label=version&color=blue)](https://github.com/OMSociety/astrbot_plugin_mindmap/releases)
 [![AstrBot](https://img.shields.io/badge/AstrBot-%E2%89%A5v4.13-green.svg)](https://github.com/AstrBotDevs/AstrBot)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-orange.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/OMSociety/astrbot_plugin_mindmap)](https://github.com/OMSociety/astrbot_plugin_mindmap/stargazers)

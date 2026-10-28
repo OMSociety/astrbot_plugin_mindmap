@@ -8,7 +8,7 @@
 
 **把 Markdown 大纲渲染成思维导图 / 时间线，直接发到群里** —— 本地渲染 · 六套配色 · 中文自动折行 · 高清输出
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/OMSociety/astrbot_plugin_mindmap)
+[![Version](https://img.shields.io/github/v/tag/OMSociety/astrbot_plugin_mindmap?label=version&color=blue)](https://github.com/OMSociety/astrbot_plugin_mindmap/releases)
 [![AstrBot](https://img.shields.io/badge/AstrBot-%E2%89%A5v4.13-green.svg)](https://github.com/AstrBotDevs/AstrBot)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-orange.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/OMSociety/astrbot_plugin_mindmap)](https://github.com/OMSociety/astrbot_plugin_mindmap/stargazers)
