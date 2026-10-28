@@ -8,10 +8,28 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 from .fonts import FontManager
-from .layout import Box, D2_FS, DEEP_FS, LayoutResult, ROOT_FS
+from .layout import (
+    BOX_PAD_X,
+    D2_FS,
+    DEEP_FS,
+    LINE_GAP,
+    ROOT_FS,
+    TL_LABEL_H,
+    TL_TITLE_PAD_X,
+    Box,
+    LayoutResult,
+)
 from .theme import Theme
 
 SS = 2  # 超采样倍数：先 2x 绘制再 LANCZOS 缩回，消除几何锯齿
+RADIUS_NODE = 18  # 节点圆角
+RADIUS_TITLE = 20  # 标题条圆角
+EDGE_W = 4  # 连线宽
+DOT_R_TREE = 8  # 树节点圆点半径
+DOT_R_TL = 10  # 时间线轴圆点半径
+AXIS_W = 6  # 时间线轴宽
+TL_AXIS_TOP_GAP = 60  # 轴起点距标题底
+TL_AXIS_BOT_INSET = 60  # 轴终点距画布底
 
 
 @dataclass
@@ -66,17 +84,17 @@ def _draw_box(
     x0, y0 = b.x * s, b.top * s
     dr.rounded_rectangle(
         [x0, y0, x0 + b.w * s, y0 + b.h * s],
-        radius=9 * s,
+        radius=RADIUS_NODE * s,
         fill=bg,
         outline=ln,
         width=int(s) if ln else 0,
     )
     fnt = fm.get(b.fs * s, b.bold)
-    lh = (b.fs + 8) * s
+    lh = (b.fs + LINE_GAP) * s
     total = len(b.lines) * lh
     ty = b.yc * s - total / 2 + lh / 2
     for line in b.lines:
-        dr.text((x0 + 14 * s, ty), line, font=fnt, fill=fg, anchor="lm")
+        dr.text((x0 + BOX_PAD_X * s, ty), line, font=fnt, fill=fg, anchor="lm")
         ty += lh
 
 
@@ -97,9 +115,9 @@ def _draw_tree(
                 ((b.x + b.w) * s, b.yc * s),
                 (c.x * s, c.yc * s),
                 edge,
-                2 * s,
+                EDGE_W * s,
             )
-            r = 4 * s
+            r = DOT_R_TREE * s
             dod.ellipse(
                 [c.x * s - r, c.yc * s - r, c.x * s + r, c.yc * s + r], fill=edge
             )
@@ -121,18 +139,20 @@ def _draw_timeline(
     dr = ImageDraw.Draw(img)
     edge = _edge_color(theme)
 
-    top = (root.bottom + 30) * s
-    bot = (res.height - 40 + 10) * s
-    dod.line([(res.axis_x * s, top), (res.axis_x * s, bot)], fill=edge, width=int(3 * s))
+    top = (root.bottom + TL_AXIS_TOP_GAP) * s
+    bot = (res.height - TL_AXIS_BOT_INSET) * s
+    dod.line(
+        [(res.axis_x * s, top), (res.axis_x * s, bot)], fill=edge, width=int(AXIS_W * s)
+    )
 
     # 标题条
     dr.rounded_rectangle(
         [root.x * s, root.top * s, (root.x + root.w) * s, root.bottom * s],
-        radius=10 * s,
+        radius=RADIUS_TITLE * s,
         fill=theme.root_fill,
     )
     dr.text(
-        ((root.x + 18) * s, root.yc * s),
+        ((root.x + TL_TITLE_PAD_X) * s, root.yc * s),
         root.node.text,
         font=fm.get(ROOT_FS * s, True),
         fill=theme.text_on_dark,
@@ -143,9 +163,11 @@ def _draw_timeline(
         left = c.x < res.axis_x
         edge_x = (c.x + c.w) * s if left else c.x * s
         dod.line(
-            [(res.axis_x * s, c.yc * s), (edge_x, c.yc * s)], fill=edge, width=int(2 * s)
+            [(res.axis_x * s, c.yc * s), (edge_x, c.yc * s)],
+            fill=edge,
+            width=int(EDGE_W * s),
         )
-        r = 5 * s
+        r = DOT_R_TL * s
         dod.ellipse(
             [res.axis_x * s - r, c.yc * s - r, res.axis_x * s + r, c.yc * s + r],
             fill=_edge_color(theme, 220),
@@ -154,26 +176,26 @@ def _draw_timeline(
         x0, y0 = c.x * s, c.top * s
         dr.rounded_rectangle(
             [x0, y0, x0 + c.w * s, y0 + c.h * s],
-            radius=9 * s,
+            radius=RADIUS_NODE * s,
             fill=bg,
             outline=ln,
             width=int(s),
         )
-        lh = DEEP_FS + 8
-        total = (D2_FS + 10 if c.label else 0) + len(c.lines) * lh
-        ty = c.yc * s - (total * s) / 2 + ((D2_FS + 10) * s) / 2
+        lh = DEEP_FS + LINE_GAP
+        total = (D2_FS + TL_LABEL_H if c.label else 0) + len(c.lines) * lh
+        ty = c.yc * s - (total * s) / 2 + ((D2_FS + TL_LABEL_H) * s) / 2
         if c.label:
             dr.text(
-                (x0 + 14 * s, ty),
+                (x0 + BOX_PAD_X * s, ty),
                 c.label,
                 font=fm.get(D2_FS * s, True),
                 fill=theme.root_fill,
                 anchor="lm",
             )
-            ty += (D2_FS + 10) * s
+            ty += (D2_FS + TL_LABEL_H) * s
         body_fnt = fm.get(DEEP_FS * s, False)
         for line in c.lines:
-            dr.text((x0 + 14 * s, ty), line, font=body_fnt, fill=fg, anchor="lm")
+            dr.text((x0 + BOX_PAD_X * s, ty), line, font=body_fnt, fill=fg, anchor="lm")
             ty += lh * s
 
     return Image.alpha_composite(img.convert("RGBA"), ov).convert("RGB")
@@ -184,8 +206,8 @@ def render_to_png(
     theme: Theme,
     fm: FontManager,
     out_path: Path,
-    max_img_width: int = 2000,
-    output_scale: float = 2.0,
+    max_img_width: int = 4000,
+    output_scale: float = 1.0,
 ) -> RenderResult:
     """绘制并在 output_scale 倍输出尺寸上落盘。
 

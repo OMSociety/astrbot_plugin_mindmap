@@ -31,11 +31,10 @@ DEFAULTS: dict = {
     "auto_send": True,
     "echo_outline": False,
     "retain_days": 7,
-    "max_image_width": 2000,
+    "max_image_width": 4000,
     "max_nodes": 200,
     "max_node_chars": 200,
-    "output_scale": 2,
-    "theme": "socred",
+    "output_scale": 1,
     "enable_command": True,
 }
 
@@ -107,7 +106,7 @@ class MindmapPlugin(Star):
 
     # ---------------- 渲染管线 ----------------
 
-    def _render(self, outline: str, layout: str) -> RenderResult:
+    def _render(self, outline: str, layout: str, theme_name: str = "") -> RenderResult:
         doc = parse_outline(
             outline,
             max_nodes=int(self._cfg("max_nodes")),
@@ -115,7 +114,7 @@ class MindmapPlugin(Star):
         )
         kind = layout if layout in ("tree", "timeline") else detect_layout(doc)
         res = build_layout(doc.root, kind, self.fm)
-        theme = get_theme(str(self._cfg("theme")))
+        theme = get_theme(str(theme_name))
         day_dir = self._data_root() / datetime.now().strftime("%Y%m%d")
         out_path = day_dir / f"mindmap_{datetime.now().strftime('%H%M%S%f')}.png"
         return render_to_png(
@@ -124,7 +123,7 @@ class MindmapPlugin(Star):
             self.fm,
             out_path,
             max_img_width=int(self._cfg("max_image_width")),
-            output_scale=int(self._cfg("output_scale")),
+            output_scale=float(self._cfg("output_scale")),
         )
 
     # ---------------- LLM 工具 ----------------
@@ -135,24 +134,26 @@ class MindmapPlugin(Star):
         event: AstrMessageEvent,
         outline: str,
         layout: str = "auto",
+        theme: str = "",
         send: bool = True,
     ) -> str:
         """根据大纲生成中文思维导图或时间线图（PNG）。
 
         大纲用 Markdown 标题（# ## ###）或 '-' 列表缩进表示层级。时间线布局节点写成「时间标签: 描述」，
-        时间标签可省略。默认直接把图片发给用户并返回一句短确认；要嵌入 docx 等二次加工时传 send=False，
+        时间标签可省略。默认直接把图片发给用户；要嵌入 docx 等二次加工时传 send=False，
         此时返回文件路径，用文件工具读取该路径即可，无需向用户展示路径。
 
         Args:
             outline (str): 大纲文本。
             layout (str): 布局：'tree' 思维导图（默认）、'timeline' 时间线、'auto' 自动检测。
+            theme (str): 配色主题，可选内置名（朱砂、靛蓝、松绿、琥珀、墨灰、黛紫）或 #RRGGBB 自定义主色；留空用默认主题。
             send (bool): 是否直接把图片发给用户（默认 true）。
 
         Returns:
-            str: send=True 时为一句可原样转发给用户的确认；send=False 时为文件路径。
+            str: send=True 时返回发送状态标记；send=False 时为文件路径。
         """
         try:
-            result = await asyncio.to_thread(self._render, outline, layout)
+            result = await asyncio.to_thread(self._render, outline, layout, theme)
         except OutlineTooLargeError as e:
             if e.nodes:
                 return (
@@ -169,34 +170,44 @@ class MindmapPlugin(Star):
             logger.exception("mindmap: 渲染失败")
             return "思维导图生成失败：内部错误，请稍后重试。"
 
-        kind_cn = "思维导图" if result.layout == "tree" else "时间线图"
         if send:
             try:
                 await event.send(MessageChain([Image(file=str(result.png_path))]))
             except Exception:
                 logger.exception("mindmap: 发送图片失败")
                 return f"图已生成但发送失败，文件 {result.png_path}"
-            return f"已发送{kind_cn}（{result.nodes} 个节点）。"
+            return "[图片已发送]"
         return str(result.png_path)
 
     # ---------------- 指令 ----------------
 
     @filter.command("mindmap")
     async def mindmap_command(self, event: AstrMessageEvent):
-        """根据大纲生成思维导图。用法：/mindmap [timeline] <大纲文本>，大纲支持 Markdown 标题或 '-' 列表。"""
+        """根据大纲生成思维导图。用法：/mindmap [--theme 主题] [timeline] <大纲文本>。"""
         if not self._cfg("enable_command"):
             return
         text = event.message_str or ""
         text = re.sub(r"^/?mindmap(@\S+)?\s*", "", text, flags=re.IGNORECASE).strip()
         layout = "auto"
-        if text.lower().startswith("timeline"):
-            layout = "timeline"
-            text = text[8:].strip()
+        theme = ""
+        while True:
+            m = re.match(r"^--theme\s+(\S+)\s*", text, flags=re.IGNORECASE)
+            if m:
+                theme = theme or m.group(1)
+                text = text[m.end() :]
+                continue
+            m = re.match(r"^timeline\s*", text, flags=re.IGNORECASE)
+            if m and layout == "auto":
+                layout = "timeline"
+                text = text[m.end() :].strip()
+                continue
+            break
         if not text:
             yield event.chain_result(
                 [
                     Plain(
-                        "用法：/mindmap [timeline] <大纲>\n"
+                        "用法：/mindmap [--theme 主题] [timeline] <大纲>\n"
+                        "主题：朱砂（默认）、靛蓝、松绿、琥珀、墨灰、黛紫，或 #RRGGBB 自定义\n"
                         "大纲示例（Markdown 标题）：\n"
                         "# 主题\n## 分支一\n- 要点\n## 分支二\n"
                         "或列表缩进：\n- 主题\n  - 分支\n    - 要点\n"
@@ -206,7 +217,7 @@ class MindmapPlugin(Star):
             )
             return
         try:
-            result = await asyncio.to_thread(self._render, text, layout)
+            result = await asyncio.to_thread(self._render, text, layout, theme)
         except OutlineError as e:
             yield event.chain_result([Plain(f"生成失败：{e}")])
             return

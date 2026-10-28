@@ -8,16 +8,26 @@ from dataclasses import dataclass, field
 from .fonts import FontManager
 from .parser import Node, OutlineError, split_label
 
-PAD = 40
-H_GAP = 90  # 树状层间距
-V_GAP = 26  # 树状兄弟间距
-TL_GAP = 34  # 时间线节点间距
-MAX_TEXT_W = 220  # 树状节点文字最大像素宽
-MAX_TEXT_W_TL = 260  # 时间线
-ROOT_FS = 26
-D1_FS = 21
-D2_FS = 18
-DEEP_FS = 16
+PAD = 80
+H_GAP = 180  # 树状层间距
+V_GAP = 52  # 树状兄弟间距
+TL_GAP = 68  # 时间线节点间距
+MAX_TEXT_W = 440  # 树状节点文字最大像素宽
+MAX_TEXT_W_TL = 520  # 时间线
+ROOT_FS = 52
+D1_FS = 42
+D2_FS = 36
+DEEP_FS = 32
+BOX_PAD_X = 28  # 盒内文字左右 padding（每侧）
+LINE_GAP = 16  # 行距增量（行高 = 字号 + LINE_GAP）
+BOX_PAD_Y = 36  # 盒纵向 padding 合计
+TL_TITLE_PAD_X = 36  # 时间线标题文字左右 padding（每侧）
+TL_TITLE_PAD_Y = 52  # 时间线标题高度增量
+TL_TITLE_GAP = 92  # 标题与首个事件的纵向间距
+TL_AXIS_OFFSET = 60  # 事件盒离轴水平距离
+TL_LABEL_W_PAD = 36  # 时间标签宽度余量
+TL_LABEL_H = 20  # 时间标签行高增量
+TL_BODY_WRAP_INSET = 48  # 时间线正文折行宽缩减量
 
 
 @dataclass
@@ -119,8 +129,8 @@ def _measure_box(node: Node, fm: FontManager, depth: int, max_w: int) -> Box:
         lines=lines,
         fs=fs,
         bold=bold,
-        w=int(math.ceil(lw)) + 28,
-        h=len(lines) * (fs + 8) + 18,
+        w=int(math.ceil(lw)) + 2 * BOX_PAD_X,
+        h=len(lines) * (fs + LINE_GAP) + BOX_PAD_Y,
     )
     box.children = [_measure_box(c, fm, depth + 1, max_w) for c in node.children]
     return box
@@ -192,22 +202,22 @@ def layout_timeline(doc_root: Node, fm: FontManager) -> tuple[Box, int, int, flo
         depth=0,
         fs=ROOT_FS,
         bold=True,
-        w=int(fm.get(ROOT_FS, True).getlength(doc_root.text)) + 36,
-        h=ROOT_FS + 26,
+        w=int(fm.get(ROOT_FS, True).getlength(doc_root.text)) + 2 * TL_TITLE_PAD_X,
+        h=ROOT_FS + TL_TITLE_PAD_Y,
     )
     title.yc = PAD + title.h / 2
 
     x_left = x_right = 0.0
-    y = PAD + title.h + 46
+    y = PAD + title.h + TL_TITLE_GAP
     side = -1  # -1 左, 1 右
     for i, n in enumerate(doc_root.children):
         box = _measure_tl_box(n, fm, i)
         box.yc = y + box.h / 2
         if side < 0:
-            box.x = -box.w - 30
+            box.x = -box.w - TL_AXIS_OFFSET
             x_left = min(x_left, box.x)
         else:
-            box.x = 30
+            box.x = TL_AXIS_OFFSET
             x_right = max(x_right, box.x + box.w)
         y += box.h + TL_GAP
         side = -side
@@ -227,8 +237,8 @@ def _measure_tl_box(node: Node, fm: FontManager, index: int) -> Box:
     label, body_text = split_label(node.text)
     label_fnt = fm.get(D2_FS, True)
     body_fnt = fm.get(DEEP_FS, False)
-    body = wrap_text(body_text, fm, DEEP_FS, False, MAX_TEXT_W_TL - 24)
-    label_w = label_fnt.getlength(label) + 18 if label else 0
+    body = wrap_text(body_text, fm, DEEP_FS, False, MAX_TEXT_W_TL - TL_BODY_WRAP_INSET)
+    label_w = label_fnt.getlength(label) + TL_LABEL_W_PAD if label else 0
     lw = max([label_w] + [body_fnt.getlength(line) for line in body], default=0)
     return Box(
         node=node,
@@ -237,8 +247,10 @@ def _measure_tl_box(node: Node, fm: FontManager, index: int) -> Box:
         fs=DEEP_FS,
         bold=False,
         label=label,
-        w=int(math.ceil(lw)) + 28,
-        h=(D2_FS + 10 if label else 0) + len(body) * (DEEP_FS + 8) + 18,
+        w=int(math.ceil(lw)) + 2 * BOX_PAD_X,
+        h=(D2_FS + TL_LABEL_H if label else 0)
+        + len(body) * (DEEP_FS + LINE_GAP)
+        + BOX_PAD_Y,
     )
 
 

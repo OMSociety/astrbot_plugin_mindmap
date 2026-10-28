@@ -18,7 +18,7 @@
   "max_image_width": {
     "type": "int",
     "description": "输出图片最大宽度（像素），超出等比缩放",
-    "default": 2000
+    "default": 4000
   },
   "max_nodes": {
     "type": "int",
@@ -31,16 +31,10 @@
     "default": 200
   },
   "output_scale": {
-    "type": "int",
-    "description": "输出分辨率倍数（相对逻辑尺寸）",
-    "default": 2,
+    "type": "float",
+    "description": "输出分辨率倍数",
+    "default": 1,
     "hint": "QQ 上看着糊就调大；受 max_image_width 上限约束"
-  },
-  "theme": {
-    "type": "string",
-    "description": "配色主题",
-    "default": "socred",
-    "hint": "当前仅提供社科红单色主题 socred"
   },
   "enable_command": {
     "type": "bool",

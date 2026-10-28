@@ -11,11 +11,11 @@ from astrbot_plugin_mindmap.core.theme import get_theme
 TREE_MD = "# 康德的批判哲学体系\n## 纯粹理性批判\n- 先验感性论\n  - 细节\n## 实践理性批判\n- 定言令式"
 
 
-def _render(md: str, kind: str, tmp_path):
+def _render(md: str, kind: str, tmp_path, **kwargs):
     fm = FontManager()
     doc = parse_outline(md)
     res = build_layout(doc.root, kind, fm)
-    return render_to_png(res, get_theme("socred"), fm, tmp_path / "out.png")
+    return render_to_png(res, get_theme(""), fm, tmp_path / "out.png", **kwargs)
 
 
 def _count_red(img: Image.Image) -> int:
@@ -35,11 +35,11 @@ def test_tree_png(tmp_path):
     assert rr.png_path.is_file()
     assert rr.layout == "tree"
     assert rr.nodes == 6  # 根 + 2 分支 + 2 叶子 + 1 细节
-    assert 400 <= rr.width <= 2000
+    assert 400 <= rr.width <= 4000
     assert rr.height >= 150  # 紧凑布局，宽扁属正常
     with Image.open(rr.png_path) as im:
         im.load()
-        assert _count_red(im) > 30  # 社科红节点与连线存在
+        assert _count_red(im) > 30  # 朱砂主题节点与连线存在
         # 白底：四角应为近白
         px = im.convert("RGB").load()
         w, h = im.size
@@ -63,5 +63,5 @@ def test_wide_image_scaled(tmp_path):
         + "\n"
         + "\n".join(f"## 很长的分支名称{i} " + "描述" * 30 for i in range(6))
     )
-    rr = _render(md, "tree", tmp_path)
-    assert rr.width <= 2000
+    rr = _render(md, "tree", tmp_path, max_img_width=600)
+    assert rr.width <= 600

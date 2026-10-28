@@ -19,8 +19,9 @@
 
 | 特性 | 说明 |
 |------|------|
-| **树状思维导图** | 根在左、水平展开，社科红分支配色 |
+| **树状思维导图** | 根在左、水平展开，层级配色自动派生 |
 | **竖轴时间线** | 中央竖轴、节点左右交替，适合历史脉络 |
+| **六套配色** | 朱砂 / 靛蓝 / 松绿 / 琥珀 / 墨灰 / 黛紫，也可传 `#RRGGBB` 自定义 |
 | **Agent 自主出图** | 内置 LLM 工具，读完材料自己决定画图发送 |
 | **全程本地** | Pillow 自研渲染，无浏览器依赖，内容不出本机 |
 | **图文件留存** | PNG 按日归档、到期自动清理，可嵌入 docx 复用 |
@@ -40,6 +41,10 @@
 
 插件内置技能 `mindmap` 教 agent 大纲语法与发送纪律；agent 在科普回答中自行调用 `draw_mindmap` 出图并发送到群。
 
+### 配色主题
+
+内置六套主色：朱砂（默认）、靛蓝、松绿、琥珀、墨灰、黛紫。传入 `#RRGGBB` 任意主色时，其余五阶由该色自动派生，明度梯度保证层级可读。
+
 ### 图文件留存
 
 生成的 PNG 保留在 `data/mindmap/YYYYmmdd/` 下（默认 7 天自动清理），可嵌入 docx 等文档复用。
@@ -47,6 +52,17 @@
 ## 快速开始
 
 在 AstrBot 插件市场搜索「思维导图工具箱」安装即可，无需任何配置。
+
+指令用法：
+
+```
+/mindmap <大纲>                      # 默认主题
+/mindmap timeline <事件>             # 时间线
+/mindmap --theme 靛蓝 <大纲>         # 指定内置主题
+/mindmap --theme #2E8B8B <大纲>      # 自定义主色
+```
+
+`--theme` 与 `timeline` 前缀顺序任意。
 
 ## 大纲格式
 
@@ -70,37 +86,36 @@
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| theme | string | socred | 配色主题（目前内置 socred 社科红） |
 | auto_send | bool | true | 工具调用后是否自动发图 |
 | retention_days | int | 7 | PNG 留存天数，0 为永久 |
-| output_scale | int | 2 | 分辨率倍数（1 / 2 / 3） |
+| output_scale | float | 1 | 分辨率倍数，支持小数 |
 
 快速配置模板：
 
 ```json
 {
-  "theme": "socred",
   "auto_send": true,
   "retention_days": 7,
-  "output_scale": 2
+  "output_scale": 1.5
 }
 ```
 
 ## LLM 工具
 
-`draw_mindmap(outline, layout, send)`：
+`draw_mindmap(outline, layout, theme, send)`：
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | outline | string | 是 | Markdown 大纲 |
 | layout | string | 否 | `tree` / `timeline` / `auto`（默认 auto） |
+| theme | string | 否 | 内置主题名或 `#RRGGBB`，默认朱砂；非法值静默回退默认 |
 | send | bool | 否 | 默认取配置 `auto_send`；`false` 只渲染不发，返回短语含绝对路径 |
 
 对话示例：
 
 ```
 你：帮我梳理一下康德的三大批判，画个思维导图
-机器人：[思维导图 PNG] 已发送思维导图（10 个节点）。
+机器人：[思维导图 PNG] 画好啦！
 ```
 
 不支持富媒体的平台上 `auto_send` 会自动禁用，改为返回文件路径供宿主自取。
