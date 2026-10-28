@@ -51,7 +51,7 @@ main.py（Star 入口） -> core/parser -> core/layout -> core/render -> core/th
 
 ## 数据流
 
-QQ 消息或 LLM 工具调用 → main.py 解析参数 → parser 出 Node 树 → layout 在基准坐标系算坐标 → render 按 output_scale 超采样出 PNG → event.send 被动回复发图。
+聊天消息或 LLM 工具调用 → main.py 解析参数 → parser 出 Node 树 → layout 在基准坐标系算坐标 → render 按 output_scale 超采样出 PNG → event.send 被动回复发图。
 
 ## 修改契约
 
@@ -99,7 +99,7 @@ QQ 消息或 LLM 工具调用 → main.py 解析参数 → parser 出 Node 树 �
 | 症状（可检索片段） | 处理 |
 |---|---|
 | 宿主插件页看不到插件 | 目录名须等于 metadata.yaml 的 `name` 且是合法 Python 标识符；查宿主日志的加载异常 |
-| QQ 发 `/mindmap` 无响应 | 指令匹配 `^/?mindmap`；检查平台指令前缀配置 |
+| 发 `/mindmap` 无响应 | 指令匹配 `^/?mindmap`；检查平台指令前缀配置 |
 | LLM 不调工具或复述工具返回值 | 检查 SKILL.md 与工具 docstring 的模型可见面（见「禁止操作」） |
 
 ## 维护

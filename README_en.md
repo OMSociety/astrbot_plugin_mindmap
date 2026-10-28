@@ -176,7 +176,7 @@ Trim per the returned phrase: merge sibling nodes, reduce depth, or split into s
 
 ### Q5: Why not mermaid or markmap?
 
-Those rely on browser rendering or do not wrap Chinese text. This plugin uses a custom Pillow layout and line breaker: fully local, no browser, still sharp in QQ thumbnails.
+Those rely on browser rendering or do not wrap Chinese text. This plugin uses a custom Pillow layout and line breaker: fully local, no browser, still sharp in chat thumbnails.
 
 ### Q6: Can the result go into a docx?
 

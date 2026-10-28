@@ -34,7 +34,7 @@
     "type": "float",
     "description": "输出分辨率倍数",
     "default": 1,
-    "hint": "QQ 上看着糊就调大；受 max_image_width 上限约束"
+    "hint": "觉得图片偏糊就调大；受 max_image_width 上限约束"
   },
   "enable_command": {
     "type": "bool",
