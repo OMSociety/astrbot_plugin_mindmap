@@ -5,3 +5,8 @@ version: 1.0.0
 author: OMSociety
 repo: https://github.com/OMSociety/astrbot_plugin_mindmap
 display_name: 思维导图工具箱
+tags:
+  - 思维导图
+  - 时间轴
+  - 模板
+
