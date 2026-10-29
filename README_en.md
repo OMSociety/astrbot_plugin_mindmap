@@ -4,17 +4,15 @@
 
 <img src="https://raw.githubusercontent.com/OMSociety/astrbot_plugin_mindmap/main/logo.png" width="120" alt="Mindmap Logo" />
 
-# Mindmap Mind-map Toolkit
+# Mindmap Diagram Toolkit
 
-**Turn a Markdown outline into a mind map or timeline and send it straight to the chat** — Local rendering · Six palettes · CJK line wrapping · HiDPI output
+**Render material as mind maps, timelines, tables, or basic flowcharts and send it straight to the chat** — Local rendering · Six palettes · CJK line wrapping · HiDPI output
 
 [![Version](https://img.shields.io/github/v/tag/OMSociety/astrbot_plugin_mindmap?label=version&color=blue)](https://github.com/OMSociety/astrbot_plugin_mindmap/releases)
 [![AstrBot](https://img.shields.io/badge/AstrBot-%E2%89%A5v4.13-green.svg)](https://github.com/AstrBotDevs/AstrBot)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-orange.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/OMSociety/astrbot_plugin_mindmap)](https://github.com/OMSociety/astrbot_plugin_mindmap/stargazers)
 [![Issues](https://img.shields.io/github/issues/OMSociety/astrbot_plugin_mindmap)](https://github.com/OMSociety/astrbot_plugin_mindmap/issues)
-
-[Core features](#core-features) • [Overview](#overview) • [Getting started](#getting-started) • [Configuration](#configuration) • [LLM tool](#llm-tool) • [FAQ](#faq) • [Changelog](CHANGELOG.md)
 
 </div>
 
@@ -24,11 +22,12 @@
 
 | Feature | Notes |
 |---------|-------|
-| **Tree mind map** | Root on the left, horizontal branches, tier colors derived automatically, long labels wrap |
-| **Vertical timeline** | Central spine with alternating nodes; date-heavy outlines are detected automatically |
+| **Mind maps and timelines** | Trees grow from left to right; timelines alternate along a central spine; long labels wrap |
+| **Markdown tables** | Standard Markdown input with a separate title parameter for comparisons and structured data |
+| **Basic flowcharts** | Vertical or horizontal start, process, decision and end nodes, with sequences, branches and merges |
 | **Six palettes** | Vermilion / Indigo / Pine / Amber / Slate / Violet, or any `#RRGGBB` primary color |
-| **Agent-driven** | Built-in LLM tool and skill spec; the model reads the material, draws and posts on its own |
-| **Fully local** | Custom Pillow layout and renderer, no browser, no remote rendering service |
+| **Agent-driven** | Three LLM tools and a bundled skill; the model reads the material, selects a diagram and posts it |
+| **Fully local** | Custom Pillow layout and renderer; no browser, Graphviz or remote rendering service |
 | **CJK typesetting** | Ships Source Han Sans CN and wraps by glyph width — no tofu boxes, no clipping |
 | **HiDPI and retention** | 1x base already equals the old 2x pixels, decimals allowed; PNGs archived by day and auto-cleaned |
 
@@ -36,13 +35,19 @@
 
 ## Overview
 
-### Tree mind map
+### Mind maps and timelines
 
-Feed a Markdown heading hierarchy or indented list and get a tree that grows left to right. Label width is measured from the actual text, so long sentences wrap into multiple lines.
+Feed a Markdown heading hierarchy or indented list and get a tree that grows left to right. When most leaf nodes look like dates (`1789:`, `1949`), the outline can be treated as a timeline for historical narratives and event sequences.
 
-### Vertical timeline
+### Tables
 
-When most leaf nodes look like dates (`1789:`, `1949`), the outline is treated as a timeline: nodes alternate left and right along a central spine, suited to historical narratives and event sequences.
+`draw_table` accepts a standard Markdown table, with its title supplied separately through `title`. It supports up to 8 columns and 50 data rows, with at most 200 characters per cell. Merged cells and rich text are not supported.
+
+### Basic flowcharts
+
+`draw_flowchart` renders node declarations and directed edges as a flowchart. The default direction is vertical, with horizontal as an alternative. It supports `start`, `process`, `decision` and `end` nodes, plus sequences, branches and merges, for up to 30 nodes.
+
+Flowcharts must describe an unambiguous one-way process. Cycles, cross-level edges, unreachable nodes and ambiguous input are rejected rather than completed by guesswork.
 
 ### Six palettes
 
@@ -50,7 +55,7 @@ Vermilion (default), Indigo, Pine, Amber, Slate and Violet ship built in; the ot
 
 ### Agent-driven drawing
 
-A bundled skill `mindmap` teaches the bot the outline format, size guidance, palette choice and sending rules. The bot calls `draw_mindmap` on its own during a walkthrough, so users never need to learn the command syntax.
+The bundled `mindmap` skill teaches the bot to select a diagram type, structure input, control size, choose palettes and follow sending rules. It calls the appropriate tool during a walkthrough, so natural-language requests are enough.
 
 ### File retention and reuse
 
@@ -68,26 +73,19 @@ AstrBot WebUI → Plugin marketplace → search for "思维导图工具箱"
 
 ### Step 2: Just ask
 
-No configuration needed. Describe what you want and the bot decides whether to draw, and which layout:
+No configuration needed. Describe what you want and the bot decides whether to draw, and which diagram type to use:
 
+```text
+User: What questions do Kant's three critiques address?
+Bot: The three critiques examine the faculties of knowledge, practice and judgment.
+[comparison table of the three critiques PNG]
+Together, they form the interconnected project of critical philosophy.
+
+User: Turn this material-handling procedure into a flowchart
+Bot: Material handling can be divided into completeness checks, concept extraction and system formation.
+[material-handling flowchart PNG]
+Both supplementary material and direct concept extraction ultimately lead to the same endpoint.
 ```
-User: Walk me through Kant's three critiques and draw a mind map
-Bot: [mind map PNG] Done!
-
-User: Draw the key turning points from the French Revolution to the Paris Commune as a timeline
-Bot: [timeline PNG] Done — five nodes from 1789 to 1871.
-```
-
-### Step 3: Or use the command
-
-```
-/mindmap <outline>                   # default palette
-/mindmap timeline <events>           # timeline
-/mindmap --theme 靛蓝 <outline>      # built-in palette
-/mindmap --theme #2E8B8B <outline>   # custom primary color
-```
-
-The `--theme` and `timeline` prefixes may appear in any order; an empty outline replies with usage help.
 
 ---
 
@@ -96,13 +94,11 @@ The `--theme` and `timeline` prefixes may appear in any order; an empty outline 
 | Field | Type | Default | Notes |
 |:------|:-----|:--------|:------|
 | `auto_send` | bool | `true` | Auto-send the image when a tool call leaves `send` unset |
-| `echo_outline` | bool | `false` | Echo the original outline after a command-generated image |
 | `retain_days` | int | `7` | Days PNGs are kept before automatic cleanup |
 | `max_image_width` | int | `4000` | Maximum output width in pixels, downscaled proportionally beyond |
-| `max_nodes` | int | `200` | Hard node limit; the call is rejected beyond it |
+| `max_nodes` | int | `200` | Hard outline node limit; the call is rejected beyond it |
 | `max_node_chars` | int | `200` | Hard per-node character limit; rejected, never silently truncated |
 | `output_scale` | float | `1` | Resolution multiplier, decimals allowed; bounded by `max_image_width` |
-| `enable_command` | bool | `true` | Enable the `/mindmap` command |
 
 ### Quick config template
 
@@ -111,33 +107,19 @@ Fill it in the WebUI panel, or follow this structure (`data/config/mindmap_confi
 ```json
 {
   "auto_send": true,
-  "echo_outline": false,
   "retain_days": 7,
   "max_image_width": 4000,
   "max_nodes": 200,
   "max_node_chars": 200,
-  "output_scale": 1,
-  "enable_command": true
+  "output_scale": 1
 }
 ```
 
 ---
 
-## LLM tool
+## LLM tools
 
-The plugin registers one LLM tool; the model decides when to call it, so natural language is enough:
-
-```
-User: Draw the structure of this material
-    # Weber's typology of authority
-    ## Traditional authority
-    - Gerontocracy and patrimonialism
-    ## Charismatic authority
-    - Prophets and the extraordinary qualities of leaders
-    ## Legal-rational authority
-    - Bureaucracy and formal rational law
-Bot: [mind map PNG] Done!
-```
+The plugin registers three tools: `draw_mindmap`, `draw_table` and `draw_flowchart`. The model decides when to call them, so natural language is enough.
 
 ### draw_mindmap
 
@@ -150,9 +132,45 @@ Render a Chinese mind map or timeline from an outline (PNG).
 | `theme` | string | no | Built-in palette name or `#RRGGBB`; empty uses the default vermilion, invalid values fall back silently |
 | `send` | bool | no | Post the image directly, default `true`; `false` renders only and returns the path |
 
-> **Note:** with `send=False` the tool returns a file path for a file tool to read and embed into docx and similar documents — never read that path out loud to the user.
+Size guidance: at most 4 levels, 6 children per branch, 60 nodes in total, 40 characters per node. Hard limits are 200 nodes, 200 characters per node and 8 levels. Oversized input is rejected rather than silently truncated.
 
-Size guidance: at most 4 levels, 6 children per branch, 60 nodes in total, 40 characters per node. Exceeding a hard limit returns a fixed phrase asking for trimming; content is never silently dropped.
+### draw_table
+
+Render a standard Markdown table as PNG. Supply the table title through `title`, not inside `markdown`.
+
+| Parameter | Type | Required | Notes |
+|:----------|:-----|:--------:|:------|
+| `markdown` | string | yes | Standard Markdown table with a header, separator and data rows |
+| `title` | string | no | Table title, up to 80 characters; long titles wrap |
+| `theme` | string | no | Built-in palette name or `#RRGGBB`; empty uses the default palette |
+| `send` | bool | no | Post the image directly, default `true`; `false` renders only and returns the path |
+
+Supports up to 8 columns and 50 data rows, with at most 200 characters per cell. Cells contain plain text; merged cells and rich text are not supported.
+
+```text
+draw_table(markdown="| Critique | Central question |\n| --- | --- |\n| Critique of Pure Reason | What can I know? |\n| Critique of Practical Reason | What ought I to do? |", title="Kant's critical philosophy", theme="朱砂", send=True)
+```
+
+### draw_flowchart
+
+Render node declarations and directed edges as a basic flowchart (PNG).
+
+| Parameter | Type | Required | Notes |
+|:----------|:-----|:--------:|:------|
+| `spec` | string | yes | Flow definition with an optional `#` title (up to 80 characters), node declarations and directed edges |
+| `direction` | string | no | `vertical` (default) / `horizontal` |
+| `theme` | string | no | Built-in palette name or `#RRGGBB`; empty uses the default palette |
+| `send` | bool | no | Post the image directly, default `true`; `false` renders only and returns the path |
+
+Declare nodes as `nodeID [type] node text`. A node ID must begin with an ASCII letter, followed only by ASCII letters, digits, underscores or hyphens. The type is optional and defaults to `process`. An optional `# Title` may appear on the first line; this is where the flowchart title is set. Write edges as `source -> target`, adding a branch label after an English or Chinese colon, such as `check -> process: yes`.
+
+Supported node types are `start`, `process`, `decision` and `end`, with sequences, branches and merges. The single entry uses `start`, every terminal uses `end`, and intermediate nodes cannot be left at a dead end. The limit is 30 nodes. Cycles, cross-level edges, unreachable nodes and ambiguous input are rejected.
+
+```text
+draw_flowchart(spec="# Material handling\nstart [start] Receive material\ncheck [decision] Complete?\nprocess [process] Extract concepts\nsupplement [process] Supplement material\ndone [end] Form a system\nstart -> check\ncheck -> process: yes\ncheck -> supplement: no\nprocess -> done\nsupplement -> done", direction="vertical", theme="朱砂", send=True)
+```
+
+> **Note:** all three tools handle `send` the same way. With `send=False`, the returned file path is for a file tool to read and embed into docx and similar documents — never read that path out loud to the user.
 
 ---
 
@@ -170,17 +188,17 @@ Any platform that accepts image messages (QQ, Telegram, Discord and others). If 
 
 Under `data/plugin_data/mindmap/mindmap/YYYYmmdd/`, one directory per day; anything older than `retain_days` (7 by default) is removed, with a cleanup every six hours.
 
-### Q4: What if the outline is too large?
+### Q4: What if the input is too large to draw?
 
-Trim per the returned phrase: merge sibling nodes, reduce depth, or split into several images. Hard limits are 200 nodes, 200 characters per node and 8 levels.
+For mind maps, merge sibling nodes, reduce depth or split the outline into several images. For tables, split columns or draw batches. For flowcharts, use several subprocesses with clear boundaries. Oversized content is never silently truncated.
 
-### Q5: Why not mermaid or markmap?
+### Q5: Why not Mermaid, Markmap or Graphviz?
 
-Those rely on browser rendering or do not wrap Chinese text. This plugin uses a custom Pillow layout and line breaker: fully local, no browser, still sharp in chat thumbnails.
+The plugin uses a custom Pillow layout and line breaker: fully local, with no browser or Graphviz dependency, and still sharp in chat thumbnails.
 
 ### Q6: Can the result go into a docx?
 
-Yes. Call with `send=False`, then read the returned path with a file tool and embed it.
+Yes. Call any tool with `send=False`, then read the returned path with a file tool and embed it.
 
 ---
 

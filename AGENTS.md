@@ -5,7 +5,7 @@
 
 ## 项目概览
 
-- 一句话定位：AstrBot 插件，把 Markdown 大纲渲染为思维导图/时间线 PNG，服务学术科普 bot。
+- 一句话定位：AstrBot 插件，把 Markdown 大纲、表格与流程声明渲染为思维导图、时间线、表格和基础流程图 PNG，服务学术科普 bot。
 - 技术栈：Python 3.13 / AstrBot 4.x 插件框架 / Pillow 自研布局渲染（无浏览器、无外部渲染服务）。
 - 宿主机制细节：以 AstrBot 宿主源码为准；开发口径见本地技能 astrbot-plugin-creator 的 references/。
 
@@ -13,7 +13,7 @@
 
 | 目的 | 命令 |
 |---|---|
-| 安装依赖 | `pip install -r requirements.txt`（装进 AstrBot 宿主 venv；插件加载时宿主也会自动装） |
+| 安装依赖 | `pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple`（装进 AstrBot 宿主 venv；插件加载时宿主也会自动装） |
 | 跑全部测试 | `python -m pytest tests -q` |
 | 跑单个测试文件 | `python -m pytest tests/test_parser.py -q` |
 | Lint | `ruff check .` |
@@ -32,6 +32,8 @@ ruff format --check .
 
 ```text
 main.py（Star 入口） -> core/parser -> core/layout -> core/render -> core/theme, core/fonts
+                     -> core/table ----^                  ^
+                     -> core/flowchart ------------------┘
 ```
 
 - 允许：main.py 只调 core 的公开函数；core 内部按上箭头单向依赖。
@@ -45,20 +47,23 @@ main.py（Star 入口） -> core/parser -> core/layout -> core/render -> core/th
 | 加大纲语法/解析规则 | `core/parser.py`（+ `tests/test_parser.py`） |
 | 改布局（间距/树结构/时间线） | `core/layout.py`（+ `tests/test_layout.py`） |
 | 改出图样式（圆角/描边/时间轴） | `core/render.py`（+ `tests/test_render.py`） |
+| 改 Markdown 表格 | `core/table.py`（+ `tests/test_table.py`） |
+| 改流程声明、DAG 校验或流程图样式 | `core/flowchart.py`（+ `tests/test_flowchart.py`） |
 | 加/改主题色 | `core/theme.py` 的 `THEMES` 注册表（+ `skills/mindmap/SKILL.md` 主题清单） |
 | 换字体 | `res/fonts/`（OFL 合规见「已知风险区」） |
-| 改工具参数/指令 | `main.py` + `_conf_schema.json` + `skills/mindmap/SKILL.md` 三处同步 |
+| 改工具参数 | `main.py` + `_conf_schema.json` + `skills/mindmap/SKILL.md` + README 双语同步 |
 
 ## 数据流
 
-聊天消息或 LLM 工具调用 → main.py 解析参数 → parser 出 Node 树 → layout 在基准坐标系算坐标 → render 按 output_scale 超采样出 PNG → event.send 被动回复发图。
+LLM 工具调用 → main.py 解析参数 → 对应 core 模块解析与布局 → 按 output_scale 超采样出 PNG → event.send 被动回复发图；send=False 时只返回图片路径。
 
 ## 修改契约
 
 - 改 `_conf_schema.json`：宿主加载时会补默认、删旧键（用户旧值会丢），改前提醒备份配置；`default` 禁 `null`，`labels` 与 `options` 按索引等长。
 - 改基准坐标系（`core/layout.py` 顶部常量区）：必须硬回归——同一输入新旧各渲一张，默认 output_scale=1 的像素尺寸与视觉样式应与基准一致（用 WorkBench 的 scale_regress 对比法）。
-- 主题只经参数传入（工具 `theme` / 指令 `--theme`），不进 `_conf_schema.json`；默认主题固定在 `core/theme.py` 的 `DEFAULT_THEME`。原因：主题是单次调用属性，配置化会让用户以为全局改色而未生效。
-- 改 `draw_mindmap` 的参数或返回值：同步 `skills/mindmap/SKILL.md` 与 README 双语。
+- 主题只经工具 `theme` 参数传入，不进 `_conf_schema.json`；默认主题固定在 `core/theme.py` 的 `DEFAULT_THEME`。原因：主题是单次调用属性，配置化会让用户以为全局改色而未生效。
+- 改任一 LLM 工具的参数或返回值：同步 `skills/mindmap/SKILL.md` 与 README 双语。
+- 流程图仅接受单一入口、所有节点可达、每条边恰好进入下一层的 DAG；不通过补边或删边猜测用户意图。
 - 改依赖：写进 `requirements.txt`；每个第三方顶层 import 都必须有对应条目；禁止 `requests`（用异步库）。
 - 版本号保持一致：`metadata.yaml` / `CHANGELOG.md` / README 徽章；首版 CHANGELOG 只有标准头部，1.0.1 起才写版本条目。
 
@@ -89,6 +94,7 @@ main.py（Star 入口） -> core/parser -> core/layout -> core/render -> core/th
 | 路径 | 风险 | 改动前后置动作 |
 |---|---|---|
 | `core/layout.py` 常量区 | 基准坐标系 2026-10 重定过：1x 即原 2x 像素 | 改完跑硬回归（见「修改契约」） |
+| `core/render.py` 画布预算 | 超采样倍率受单边与总像素约束，极端布局提前拒绝 | 改预算时检查所有图表的分配前校验与回归测试 |
 | `res/fonts/` | 思源黑体 OFL 1.1 有 Reserved Font Name：改字体文件必须连名一起改并更新 OFL.txt | 改前读 `res/fonts/OFL.txt` |
 | `skills/mindmap/SKILL.md` | bot 行为规范：回复纪律（不解释工作流）、发送纪律（被动发图）写在这里 | 改工具行为必须同步此文件 |
 | Windows 本机 pytest | Temp 目录 ACL 拒绝会让 tmp_path 夹具全挂 | 加 `--basetemp` 指向可写目录 |
@@ -99,7 +105,6 @@ main.py（Star 入口） -> core/parser -> core/layout -> core/render -> core/th
 | 症状（可检索片段） | 处理 |
 |---|---|
 | 宿主插件页看不到插件 | 插件目录名须是合法 Python 标识符（宿主按目录名 import 模块）；查宿主日志的加载异常 |
-| 发 `/mindmap` 无响应 | 指令匹配 `^/?mindmap`；检查平台指令前缀配置 |
 | LLM 不调工具或复述工具返回值 | 检查 SKILL.md 与工具 docstring 的模型可见面（见「禁止操作」） |
 
 ## 维护

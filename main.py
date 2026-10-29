@@ -1,4 +1,4 @@
-"""思维导图工具箱：llm_tool 自主出图 + 指令出图 + 文件留存与清理。"""
+"""思维导图工具箱：大纲、表格与基础流程图的 LLM 工具及图片留存。"""
 
 from __future__ import annotations
 
@@ -7,13 +7,15 @@ import re
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Callable
 
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.event import MessageChain
-from astrbot.api.message_components import Image, Plain
+from astrbot.api.message_components import Image
 from astrbot.api.star import Context, Star, StarTools
 
+from .core.flowchart import FlowchartError, parse_flowchart, render_flowchart_png
 from .core.fonts import FontManager
 from .core.layout import build_layout
 from .core.parser import (
@@ -23,19 +25,23 @@ from .core.parser import (
     parse_outline,
 )
 from .core.render import RenderResult, render_to_png
+from .core.table import (
+    TableError,
+    parse_table,
+    render_table_png,
+    validate_table_title,
+)
 from .core.theme import get_theme
 
 PLUGIN_NAME = "mindmap"
 
 DEFAULTS: dict = {
     "auto_send": True,
-    "echo_outline": False,
     "retain_days": 7,
     "max_image_width": 4000,
     "max_nodes": 200,
     "max_node_chars": 200,
     "output_scale": 1,
-    "enable_command": True,
 }
 
 _DATE_DIR_RE = re.compile(r"^\d{8}$")
@@ -51,7 +57,6 @@ class MindmapPlugin(Star):
     # ---------------- 配置 ----------------
 
     def _cfg(self, key: str):
-        val = None
         try:
             val = self.config.get(key)  # type: ignore[union-attr]
         except AttributeError:
@@ -104,9 +109,11 @@ class MindmapPlugin(Star):
                 removed += 1
         return removed
 
-    # ---------------- 渲染管线 ----------------
+    # ---------------- 渲染与发送 ----------------
 
-    def _render(self, outline: str, layout: str, theme_name: str = "") -> RenderResult:
+    def _render_mindmap(
+        self, outline: str, layout: str, theme_name: str
+    ) -> RenderResult:
         doc = parse_outline(
             outline,
             max_nodes=int(self._cfg("max_nodes")),
@@ -114,17 +121,54 @@ class MindmapPlugin(Star):
         )
         kind = layout if layout in ("tree", "timeline") else detect_layout(doc)
         res = build_layout(doc.root, kind, self.fm)
-        theme = get_theme(str(theme_name))
+        return self._save_render(res, "mindmap", theme_name, render_to_png)
+
+    def _render_table(self, markdown: str, title: str, theme_name: str) -> RenderResult:
+        doc = parse_table(markdown)
+        doc.title = validate_table_title(title)
+        return self._save_render(doc, "table", theme_name, render_table_png)
+
+    def _render_flowchart(
+        self, spec: str, direction: str, theme_name: str
+    ) -> RenderResult:
+        doc = parse_flowchart(spec)
+        return self._save_render(
+            doc, "flowchart", theme_name, render_flowchart_png, direction
+        )
+
+    def _save_render(
+        self,
+        document,
+        prefix: str,
+        theme_name: str,
+        renderer: Callable,
+        *args,
+    ) -> RenderResult:
         day_dir = self._data_root() / datetime.now().strftime("%Y%m%d")
-        out_path = day_dir / f"mindmap_{datetime.now().strftime('%H%M%S%f')}.png"
-        return render_to_png(
-            res,
-            theme,
+        timestamp = datetime.now().strftime("%H%M%S%f")
+        out_path = day_dir / f"{prefix}_{timestamp}.png"
+        return renderer(
+            document,
+            *args,
+            get_theme(str(theme_name)),
             self.fm,
             out_path,
             max_img_width=int(self._cfg("max_image_width")),
             output_scale=float(self._cfg("output_scale")),
         )
+
+    async def _deliver(
+        self, event: AstrMessageEvent, result: RenderResult, send: bool | None
+    ) -> str:
+        should_send = bool(self._cfg("auto_send")) if send is None else send
+        if not should_send:
+            return str(result.png_path)
+        try:
+            await event.send(MessageChain([Image(file=str(result.png_path))]))
+        except Exception:
+            logger.exception("mindmap: 发送图片失败")
+            return f"图已生成但发送失败，文件 {result.png_path}"
+        return "[图片已发送]"
 
     # ---------------- LLM 工具 ----------------
 
@@ -135,25 +179,26 @@ class MindmapPlugin(Star):
         outline: str,
         layout: str = "auto",
         theme: str = "",
-        send: bool = True,
+        send: bool | None = None,
     ) -> str:
         """根据大纲生成中文思维导图或时间线图（PNG）。
 
-        大纲用 Markdown 标题（# ## ###）或 '-' 列表缩进表示层级。时间线布局节点写成「时间标签: 描述」，
-        时间标签可省略。默认直接把图片发给用户；要嵌入 docx 等二次加工时传 send=False，
-        此时返回文件路径，用文件工具读取该路径即可，无需向用户展示路径。
+        大纲用 Markdown 标题（# ## ###）或 '-' 列表缩进表示层级。时间线布局节点写成「时间标签: 描述」。
+        要嵌入 docx 等二次加工时传 send=False，返回文件路径供文件工具读取。
 
         Args:
             outline (str): 大纲文本。
-            layout (str): 布局：'tree' 思维导图（默认）、'timeline' 时间线、'auto' 自动检测。
-            theme (str): 配色主题，可选内置名（朱砂、靛蓝、松绿、琥珀、墨灰、黛紫）或 #RRGGBB 自定义主色；留空用默认主题。
-            send (bool): 是否直接把图片发给用户（默认 true）。
+            layout (str): 布局：'tree' 思维导图、'timeline' 时间线、'auto' 自动检测。
+            theme (str): 内置主题名或 #RRGGBB 自定义主色；留空使用默认主题。
+            send (bool): 是否直接把图片发给用户。
 
         Returns:
-            str: send=True 时返回发送状态标记；send=False 时为文件路径。
+            str: 发图状态标记，或供二次加工读取的文件路径。
         """
         try:
-            result = await asyncio.to_thread(self._render, outline, layout, theme)
+            result = await asyncio.to_thread(
+                self._render_mindmap, outline, layout, theme
+            )
         except OutlineTooLargeError as e:
             if e.nodes:
                 return (
@@ -167,65 +212,73 @@ class MindmapPlugin(Star):
         except OutlineError as e:
             return f"大纲解析失败：{e} 请修正后重试。"
         except Exception:
-            logger.exception("mindmap: 渲染失败")
+            logger.exception("mindmap: 思维导图渲染失败")
             return "思维导图生成失败：内部错误，请稍后重试。"
+        return await self._deliver(event, result, send)
 
-        if send:
-            try:
-                await event.send(MessageChain([Image(file=str(result.png_path))]))
-            except Exception:
-                logger.exception("mindmap: 发送图片失败")
-                return f"图已生成但发送失败，文件 {result.png_path}"
-            return "[图片已发送]"
-        return str(result.png_path)
+    @filter.llm_tool(name="draw_table")
+    async def draw_table(
+        self,
+        event: AstrMessageEvent,
+        markdown: str,
+        title: str = "",
+        theme: str = "",
+        send: bool | None = None,
+    ) -> str:
+        """把标准 Markdown 表格绘制成中文表格图片（PNG）。
 
-    # ---------------- 指令 ----------------
+        表格需含表头与分隔行；标题通过 title 单独传入。要嵌入文档时传 send=False。
 
-    @filter.command("mindmap")
-    async def mindmap_command(self, event: AstrMessageEvent):
-        """根据大纲生成思维导图。用法：/mindmap [--theme 主题] [timeline] <大纲文本>。"""
-        if not self._cfg("enable_command"):
-            return
-        text = event.message_str or ""
-        text = re.sub(r"^/?mindmap(@\S+)?\s*", "", text, flags=re.IGNORECASE).strip()
-        layout = "auto"
-        theme = ""
-        while True:
-            m = re.match(r"^--theme\s+(\S+)\s*", text, flags=re.IGNORECASE)
-            if m:
-                theme = theme or m.group(1)
-                text = text[m.end() :]
-                continue
-            m = re.match(r"^timeline\s*", text, flags=re.IGNORECASE)
-            if m and layout == "auto":
-                layout = "timeline"
-                text = text[m.end() :].strip()
-                continue
-            break
-        if not text:
-            yield event.chain_result(
-                [
-                    Plain(
-                        "用法：/mindmap [--theme 主题] [timeline] <大纲>\n"
-                        "主题：朱砂（默认）、靛蓝、松绿、琥珀、墨灰、黛紫，或 #RRGGBB 自定义\n"
-                        "大纲示例（Markdown 标题）：\n"
-                        "# 主题\n## 分支一\n- 要点\n## 分支二\n"
-                        "或列表缩进：\n- 主题\n  - 分支\n    - 要点\n"
-                        "时间线节点格式：1789: 三级会议召开……（时间标签可省略）"
-                    )
-                ]
-            )
-            return
+        Args:
+            markdown (str): 标准 Markdown 表格，最多 8 列、50 行数据。
+            title (str): 显示在表格上方的标题，最多 80 字，超宽自动折行。
+            theme (str): 内置主题名或 #RRGGBB 自定义主色。
+            send (bool): 是否直接把图片发给用户。
+
+        Returns:
+            str: 发图状态标记，或供二次加工读取的文件路径。
+        """
         try:
-            result = await asyncio.to_thread(self._render, text, layout, theme)
-        except OutlineError as e:
-            yield event.chain_result([Plain(f"生成失败：{e}")])
-            return
+            result = await asyncio.to_thread(self._render_table, markdown, title, theme)
+        except TableError as e:
+            return f"表格生成失败：{e}"
         except Exception:
-            logger.exception("mindmap: 渲染失败")
-            yield event.chain_result([Plain("生成失败：内部错误。")])
-            return
-        chain: list = [Image(file=str(result.png_path))]
-        if self._cfg("echo_outline"):
-            chain.append(Plain(f"\n大纲：\n{text}"))
-        yield event.chain_result(chain)
+            logger.exception("mindmap: 表格渲染失败")
+            return "表格生成失败：内部错误，请稍后重试。"
+        return await self._deliver(event, result, send)
+
+    @filter.llm_tool(name="draw_flowchart")
+    async def draw_flowchart(
+        self,
+        event: AstrMessageEvent,
+        spec: str,
+        direction: str = "vertical",
+        theme: str = "",
+        send: bool | None = None,
+    ) -> str:
+        """把节点与箭头声明绘制成基础流程图（PNG），支持顺序、判断分支与汇合。
+
+        首行可用 '# 标题'；节点写成 'id [process] 内容'，类型可选 start、process、decision、end；
+        连线写成 '起点 -> 终点: 条件'。以 start 节点为唯一入口、end 节点收尾，
+        所有节点连成一个无回环、逐层推进的流程。
+        要嵌入文档时传 send=False。
+
+        Args:
+            spec (str): 流程声明，最多 30 个节点。
+            direction (str): 布局方向：'vertical' 纵向或 'horizontal' 横向。
+            theme (str): 内置主题名或 #RRGGBB 自定义主色。
+            send (bool): 是否直接把图片发给用户。
+
+        Returns:
+            str: 发图状态标记，或供二次加工读取的文件路径。
+        """
+        try:
+            result = await asyncio.to_thread(
+                self._render_flowchart, spec, direction, theme
+            )
+        except FlowchartError as e:
+            return f"流程图生成失败：{e}"
+        except Exception:
+            logger.exception("mindmap: 流程图渲染失败")
+            return "流程图生成失败：内部错误，请稍后重试。"
+        return await self._deliver(event, result, send)

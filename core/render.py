@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -22,6 +23,8 @@ from .layout import (
 from .theme import Theme
 
 SS = 2  # 超采样倍数：先 2x 绘制再 LANCZOS 缩回，消除几何锯齿
+MAX_CANVAS_SIDE = 10000  # 限制超采样前的单边像素，避免极端布局触发大额内存分配
+MAX_CANVAS_PIXELS = 40_000_000
 RADIUS_NODE = 18  # 节点圆角
 RADIUS_TITLE = 20  # 标题条圆角
 EDGE_W = 4  # 连线宽
@@ -201,6 +204,19 @@ def _draw_timeline(
     return Image.alpha_composite(img.convert("RGBA"), ov).convert("RGB")
 
 
+def safe_canvas_scale(width: int, height: int, output_scale: float) -> float:
+    """在创建位图前限制超采样倍率，保留比例并限定内存上界。"""
+    requested = SS * max(0.5, min(output_scale, 4.0))
+    budget = min(
+        MAX_CANVAS_SIDE / max(1, width),
+        MAX_CANVAS_SIDE / max(1, height),
+        math.sqrt(MAX_CANVAS_PIXELS / max(1, width * height)),
+    )
+    if budget < 0.25:
+        raise ValueError("图表布局过大，无法安全生成图片：请减少内容或拆成多张图。")
+    return min(requested, budget)
+
+
 def render_to_png(
     res: LayoutResult,
     theme: Theme,
@@ -213,7 +229,7 @@ def render_to_png(
 
     超采样 SS 负责抗锯齿；output_scale 负责最终分辨率——两者乘积是绘制倍率。
     """
-    scale = SS * max(0.5, min(output_scale, 4.0))
+    scale = safe_canvas_scale(res.width, res.height, output_scale)
     if res.kind == "timeline":
         img = _draw_timeline(res, theme, fm, scale)
     else:

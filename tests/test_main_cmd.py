@@ -1,62 +1,92 @@
-"""指令层测试：指令名不污染大纲主题；send 行为。"""
+"""LLM 工具层：三类图表的真实出图、发送状态与输入错误反馈。"""
 
-import re
 from pathlib import Path
 
 import pytest
 
 
-def test_command_prefix_regex():
-    pat = r"^/?mindmap(@\S+)?\s*"
-    assert re.sub(pat, "", "mindmap # 物权法", flags=re.IGNORECASE) == "# 物权法"
-    assert re.sub(pat, "", "/mindmap # 物权法", flags=re.IGNORECASE) == "# 物权法"
-    assert re.sub(pat, "", "/mindmap@bot # 物权法", flags=re.IGNORECASE) == "# 物权法"
-
-
 class _FakeEvent:
-    def __init__(self, message_str: str) -> None:
-        self.message_str = message_str
+    def __init__(self) -> None:
+        self.sent = []
 
-    def chain_result(self, chain):
-        return type("Result", (), {"chain": chain})()
+    async def send(self, chain) -> None:
+        self.sent.append(chain)
 
 
-@pytest.mark.asyncio
-async def test_command_renders_clean_title(tmp_path, monkeypatch):
+@pytest.fixture
+def star(tmp_path, monkeypatch):
     from astrbot_plugin_mindmap.main import MindmapPlugin
 
-    star = MindmapPlugin(context=None, config={})
-    monkeypatch.setattr(star, "_data_root", lambda: tmp_path / "mindmap")
-    ev = _FakeEvent("/mindmap # 物权法\n## 章节\n- 要点")
-    results = [r async for r in star.mindmap_command(ev)]
-    assert results, "指令没有产出"
-    img = results[-1].chain[0]
-    assert Path(img.file).is_file(), f"图片不存在: {img.file}"
+    plugin = MindmapPlugin(context=None, config={})
+    monkeypatch.setattr(plugin, "_data_root", lambda: tmp_path / "charts")
+    return plugin
 
 
 @pytest.mark.asyncio
-async def test_command_theme_prefix_and_order(tmp_path, monkeypatch):
-    import astrbot_plugin_mindmap.main as m
+async def test_mindmap_tool_sends_image(star):
+    event = _FakeEvent()
+    result = await star.draw_mindmap(event, "# 主题\n- 分支")
 
-    calls = []
-    real_get_theme = m.get_theme
+    assert result == "[图片已发送]"
+    assert len(event.sent) == 1
+    assert Path(event.sent[0].chain[0].file).is_file()
 
-    def spy(name=""):
-        calls.append(name)
-        return real_get_theme(name)
 
-    monkeypatch.setattr(m, "get_theme", spy)
-    star = m.MindmapPlugin(context=None, config={})
-    monkeypatch.setattr(star, "_data_root", lambda: tmp_path / "mindmap")
+@pytest.mark.asyncio
+async def test_table_tool_sends_image_and_returns_path_when_disabled(star):
+    markdown = "| 批判 | 问题 |\n| --- | --- |\n| 纯粹理性批判 | 我能知道什么 |"
+    sent_event = _FakeEvent()
+    sent_result = await star.draw_table(sent_event, markdown, title="三大批判")
 
-    for text in (
-        "/mindmap --theme 靛蓝 # 主题\n- 要点",
-        "/mindmap --theme #2E8B8B timeline 1789: 事件",
-        "/mindmap timeline --theme 松绿 1789: 事件",
-    ):
-        ev = _FakeEvent(text)
-        results = [r async for r in star.mindmap_command(ev)]
-        assert results, f"指令没有产出: {text}"
-        assert Path(results[-1].chain[0].file).is_file()
+    assert sent_result == "[图片已发送]"
+    assert Path(sent_event.sent[0].chain[0].file).name.startswith("table_")
 
-    assert calls == ["靛蓝", "#2E8B8B", "松绿"]
+    path = await star.draw_table(_FakeEvent(), markdown, send=False)
+    assert Path(path).is_file()
+
+
+@pytest.mark.asyncio
+async def test_flowchart_tool_supports_both_delivery_modes(star):
+    spec = "start [start] 开始\nfinish [end] 完成\nstart -> finish"
+    event = _FakeEvent()
+    result = await star.draw_flowchart(event, spec, direction="horizontal")
+
+    assert result == "[图片已发送]"
+    assert Path(event.sent[0].chain[0].file).name.startswith("flowchart_")
+
+    path = await star.draw_flowchart(_FakeEvent(), spec, send=False)
+    assert Path(path).is_file()
+
+
+@pytest.mark.asyncio
+async def test_auto_send_controls_only_unset_send(star):
+    star.config["auto_send"] = False
+    path = await star.draw_table(_FakeEvent(), "| A |\n| --- |\n| 甲 |", title="测试")
+    assert Path(path).is_file()
+
+    event = _FakeEvent()
+    result = await star.draw_table(
+        event, "| A |\n| --- |\n| 甲 |", title="测试", send=True
+    )
+    assert result == "[图片已发送]"
+    assert len(event.sent) == 1
+
+
+@pytest.mark.asyncio
+async def test_tools_return_specific_input_errors(star):
+    table_error = await star.draw_table(_FakeEvent(), "不是表格")
+    flow_error = await star.draw_flowchart(
+        _FakeEvent(), "a [start] 开始\nb [end] 结束\na -> b\nb -> a"
+    )
+
+    assert table_error.startswith("表格生成失败：")
+    assert flow_error.startswith("流程图生成失败：")
+    assert "回环" in flow_error
+
+
+def test_plugin_registers_no_command_handlers():
+    from astrbot_plugin_mindmap.main import MindmapPlugin
+
+    assert not hasattr(MindmapPlugin, "mindmap_command")
+    assert hasattr(MindmapPlugin, "draw_table")
+    assert hasattr(MindmapPlugin, "draw_flowchart")

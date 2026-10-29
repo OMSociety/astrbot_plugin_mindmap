@@ -5,11 +5,6 @@
     "default": true,
     "hint": "docx 嵌入等二次加工场景可在调用时传 send=False"
   },
-  "echo_outline": {
-    "type": "bool",
-    "description": "指令模式生成图片后是否回显原始大纲",
-    "default": false
-  },
   "retain_days": {
     "type": "int",
     "description": "PNG 文件保留天数，超过后自动清理",
@@ -22,12 +17,12 @@
   },
   "max_nodes": {
     "type": "int",
-    "description": "大纲节点数硬上限，超出拒绝生成",
+    "description": "思维导图与时间线的大纲节点数硬上限，超出拒绝生成",
     "default": 200
   },
   "max_node_chars": {
     "type": "int",
-    "description": "单节点字数硬上限，超出拒绝生成（不静默裁剪）",
+    "description": "思维导图与时间线的单节点字数硬上限，超出拒绝生成（不静默裁剪）",
     "default": 200
   },
   "output_scale": {
@@ -35,10 +30,5 @@
     "description": "输出分辨率倍数",
     "default": 1,
     "hint": "觉得图片偏糊就调大；受 max_image_width 上限约束"
-  },
-  "enable_command": {
-    "type": "bool",
-    "description": "是否启用 /mindmap 指令",
-    "default": true
   }
 }

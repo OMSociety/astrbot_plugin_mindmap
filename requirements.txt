@@ -1,2 +1,2 @@
-# 无新增 Python 依赖。
-# 渲染基于 Pillow（AstrBot 核心已内置）；中文字体由插件自带（res/fonts/，思源黑体，SIL OFL 1.1）。
+Pillow
+# 中文字体由插件自带（res/fonts/，思源黑体，SIL OFL 1.1）。
