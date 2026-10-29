@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from PIL import ImageFont
-
-logger = logging.getLogger("astrbot_plugin_mindmap")
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 _BUNDLED_REGULAR = PLUGIN_ROOT / "res" / "fonts" / "SourceHanSansCN-Regular.otf"
@@ -31,25 +29,24 @@ _SYSTEM_CANDIDATES = [
 class FontManager:
     """按字号缓存 ImageFont；优先插件内置思源黑体，缺失时降级系统字体。"""
 
-    def __init__(self) -> None:
-        self._regular = self._pick(_BUNDLED_REGULAR, bold=False)
-        self._bold = self._pick(_BUNDLED_BOLD, bold=True)
+    def __init__(self, on_warning: Callable[[str], None] | None = None) -> None:
+        self._regular = self._pick(_BUNDLED_REGULAR)
+        self._bold = self._pick(_BUNDLED_BOLD)
         self._cache: dict[tuple[int, bool], ImageFont.FreeTypeFont] = {}
-        if self._regular[1] != "bundled" or self._bold[1] != "bundled":
-            logger.warning(
-                "mindmap: 插件内置字体缺失，已降级到 %s；中文可能显示为方框，"
-                "建议补全 res/fonts/ 下的思源黑体文件。",
-                self._regular[0],
+        if on_warning is not None and (
+            self._regular[1] != "bundled" or self._bold[1] != "bundled"
+        ):
+            on_warning(
+                "mindmap: 插件内置字体缺失，已降级到 "
+                f"{self._regular[0]}；中文可能显示为方框，"
+                "建议补全 res/fonts/ 下的思源黑体文件。"
             )
 
-    def _pick(self, bundled: Path, bold: bool) -> tuple[str, str]:
+    def _pick(self, bundled: Path) -> tuple[str, str]:
         if bundled.is_file():
             return (str(bundled), "bundled")
         for cand in _SYSTEM_CANDIDATES:
             if Path(cand).is_file():
-                if bold and "bold" not in Path(cand).stem.lower():
-                    # 常规体冒充粗体仍可接受，记录即可。
-                    logger.info("mindmap: 粗体回退到常规字体文件 %s", cand)
                 return (cand, "system")
         return ("", "default")
 

@@ -51,7 +51,7 @@ class MindmapPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
         super().__init__(context)
         self.config = config if isinstance(config, dict) else (config or {})
-        self.fm = FontManager()
+        self.fm = FontManager(on_warning=logger.warning)
         self._cleanup_task: asyncio.Task | None = None
 
     # ---------------- 配置 ----------------
