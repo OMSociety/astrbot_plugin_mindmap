@@ -1,7 +1,7 @@
 name: mindmap
 desc: 通过 LLM 工具渲染中文思维导图、时间线、表格与基础流程图
 short_desc: LLM 工具生成中文思维导图/时间线/表格/流程图 PNG
-version: 1.0.0
+version: 1.1.0
 author: OMSociety
 repo: https://github.com/OMSociety/astrbot_plugin_mindmap
 display_name: 思维导图工具箱
