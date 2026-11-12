@@ -2,9 +2,7 @@
 
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/OMSociety/astrbot_plugin_mindmap/main/logo.png" width="120" alt="Mindmap Logo" />
-
-# Mindmap 图表工具箱
+<h1><img src="https://raw.githubusercontent.com/OMSociety/astrbot_plugin_mindmap/main/logo.png" width="192" alt="Mindmap Logo"><br>Mindmap 图表工具箱</h1>
 
 **把材料渲染成思维导图 / 时间线 / 表格 / 基础流程图，直接发到群里** —— 本地渲染 · 六套配色 · 中文自动折行 · 高清输出
 

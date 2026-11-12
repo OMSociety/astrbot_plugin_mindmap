@@ -2,9 +2,7 @@
 
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/OMSociety/astrbot_plugin_mindmap/main/logo.png" width="120" alt="Mindmap Logo" />
-
-# Mindmap Diagram Toolkit
+<h1><img src="https://raw.githubusercontent.com/OMSociety/astrbot_plugin_mindmap/main/logo.png" width="192" alt="Mindmap Logo"><br>Mindmap Diagram Toolkit</h1>
 
 **Render material as mind maps, timelines, tables, or basic flowcharts and send it straight to the chat** — Local rendering · Six palettes · CJK line wrapping · HiDPI output
 
